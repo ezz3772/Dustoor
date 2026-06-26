@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>دستور أحمد</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Cairo:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink:    #1a1714;
+    --muted:  #6b6459;
+    --rule:   #c9bfb0;
+    --paper:  #faf7f2;
+    --accent: #8b6f47;
+    --pale:   #f0ebe3;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { font-size: 18px; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Cairo', sans-serif;
+    font-weight: 300;
+    line-height: 1.9;
+    min-height: 100vh;
+  }
+
+  .page {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 60px 32px 100px;
+  }
+
+  /* ── Edit mode styles ── */
+  .edit-bar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: var(--ink);
+    color: var(--paper);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 20px;
+    font-size: 0.8rem;
+    font-family: 'Cairo', sans-serif;
+  }
+
+  .edit-bar span { color: #d4b896; font-weight: 600; }
+
+  .edit-bar-btns { display: flex; gap: 8px; }
+
+  .btn-edit, .btn-save, .btn-add-quote, .btn-add-section {
+    border: none;
+    border-radius: 3px;
+    padding: 6px 14px;
+    font-family: 'Cairo', sans-serif;
+    font-size: 0.78rem;
+    cursor: pointer;
+    font-weight: 600;
+    transition: opacity 0.15s;
+  }
+
+  .btn-edit    { background: #d4b896; color: var(--ink); }
+  .btn-save    { background: #5a9e6f; color: white; }
+  .btn-add-quote   { background: var(--accent); color: white; }
+  .btn-add-section { background: #555; color: white; }
+
+  .btn-edit:hover, .btn-save:hover,
+  .btn-add-quote:hover, .btn-add-section:hover { opacity: 0.85; }
+
+  /* editing state indicator */
+  body.editing [contenteditable] {
+    outline: none;
+    border-bottom: 1px dashed var(--accent);
+    cursor: text;
+  }
+
+  body.editing [contenteditable]:focus {
+    background: rgba(139,111,71,0.06);
+    border-radius: 2px;
+    border-bottom-color: var(--accent);
+  }
+
+  body:not(.editing) [contenteditable] {
+    cursor: default;
+  }
+
+  /* delete button on items */
+  .deletable {
+    position: relative;
+  }
+
+  body.editing .deletable:hover .del-btn { opacity: 1; }
+
+  .del-btn {
+    position: absolute;
+    left: -28px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: #c0392b;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    font-size: 0.7rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.15s;
+    flex-shrink: 0;
+  }
+
+  body:not(.editing) .del-btn { display: none; }
+
+  /* ── Header ── */
+  .header {
+    text-align: center;
+    padding-bottom: 48px;
+    border-bottom: 1px solid var(--rule);
+    margin-bottom: 56px;
+  }
+
+  .header-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.25em;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 20px;
+  }
+
+  .header h1 {
+    font-family: 'Amiri', serif;
+    font-size: 3.2rem;
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--ink);
+    margin-bottom: 16px;
+  }
+
+  .header-sub {
+    font-size: 0.9rem;
+    color: var(--muted);
+    font-weight: 300;
+  }
+
+  /* ── Sections ── */
+  .section { margin-bottom: 56px; }
+
+  .section-title {
+    font-family: 'Amiri', serif;
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--accent);
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--rule);
+  }
+
+  .section p { font-size: 1rem; color: var(--ink); margin-bottom: 12px; }
+  .section p.muted { color: var(--muted); font-size: 0.9rem; }
+
+  /* ── Identity block ── */
+  .identity-block {
+    background: var(--pale);
+    border-right: 3px solid var(--accent);
+    padding: 24px 28px;
+    border-radius: 2px;
+  }
+
+  .identity-block p { margin-bottom: 8px; font-size: 1rem; }
+  .identity-block p:last-child { margin-bottom: 0; }
+  .identity-block .positive { font-weight: 600; color: var(--ink); }
+  .identity-block .negative {
+    color: var(--muted);
+    text-decoration: line-through;
+    text-decoration-color: var(--accent);
+  }
+
+  /* ── Lists ── */
+  .trait-list { list-style: none; padding: 0; }
+
+  .trait-list li {
+    padding: 8px 0;
+    border-bottom: 1px solid var(--pale);
+    font-size: 0.95rem;
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+
+  .trait-list li:last-child { border-bottom: none; }
+
+  .trait-list li::before {
+    content: '—';
+    color: var(--accent);
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  /* ── Situations ── */
+  .situation { margin-bottom: 40px; }
+
+  .situation-trigger {
+    font-family: 'Amiri', serif;
+    font-size: 1.05rem;
+    font-style: italic;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+
+  .situation-response {
+    font-size: 1rem;
+    color: var(--ink);
+    padding-right: 16px;
+    border-right: 2px solid var(--rule);
+    margin-bottom: 6px;
+  }
+
+  .situation-response.strong {
+    border-right-color: var(--accent);
+    font-weight: 600;
+  }
+
+  /* ── Steps ── */
+  .steps { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+
+  .step { display: flex; align-items: baseline; gap: 14px; font-size: 0.95rem; }
+
+  .step-num {
+    font-family: 'Amiri', serif;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--accent);
+    flex-shrink: 0;
+    width: 20px;
+    text-align: center;
+  }
+
+  /* ── Quote block (editable) ── */
+  .quote-block {
+    background: var(--pale);
+    border-right: 3px solid var(--accent);
+    padding: 20px 24px;
+    border-radius: 2px;
+    margin-bottom: 16px;
+    font-family: 'Amiri', serif;
+    font-size: 1.05rem;
+    font-style: italic;
+    color: var(--ink);
+    line-height: 1.8;
+    position: relative;
+  }
+
+  /* ── Covenant ── */
+  .covenant {
+    background: var(--ink);
+    color: var(--paper);
+    padding: 36px 32px;
+    border-radius: 2px;
+    text-align: center;
+  }
+
+  .covenant p {
+    font-family: 'Amiri', serif;
+    font-size: 1.2rem;
+    line-height: 2;
+    color: var(--paper);
+  }
+
+  .covenant p.accent-line {
+    color: #d4b896;
+    font-weight: 700;
+    font-size: 1.3rem;
+  }
+
+  /* ── Letter ── */
+  .letter {
+    margin-top: 64px;
+    padding-top: 48px;
+    border-top: 1px solid var(--rule);
+  }
+
+  .letter-salutation {
+    font-family: 'Amiri', serif;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--accent);
+    margin-bottom: 24px;
+  }
+
+  .letter p { font-size: 0.97rem; color: var(--ink); margin-bottom: 16px; }
+
+  .letter .closing {
+    margin-top: 32px;
+    background: var(--pale);
+    padding: 24px 28px;
+    border-radius: 2px;
+    font-family: 'Amiri', serif;
+    font-size: 1.1rem;
+    font-style: italic;
+    line-height: 1.8;
+    color: var(--ink);
+    text-align: center;
+  }
+
+  /* ── Footer ── */
+  .footer {
+    margin-top: 80px;
+    text-align: center;
+    font-size: 0.75rem;
+    color: var(--rule);
+    letter-spacing: 0.1em;
+  }
+
+  /* ── Add-item row ── */
+  .add-item-row {
+    display: none;
+    margin-top: 10px;
+  }
+
+  body.editing .add-item-row { display: flex; gap: 8px; }
+
+  .add-item-row input {
+    flex: 1;
+    background: var(--pale);
+    border: 1px dashed var(--rule);
+    border-radius: 3px;
+    padding: 6px 12px;
+    font-family: 'Cairo', sans-serif;
+    font-size: 0.88rem;
+    color: var(--ink);
+    direction: rtl;
+  }
+
+  .add-item-row input:focus { outline: none; border-color: var(--accent); }
+
+  .add-item-row button {
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 3px;
+    padding: 6px 14px;
+    font-family: 'Cairo', sans-serif;
+    font-size: 0.82rem;
+    cursor: pointer;
+  }
+
+  /* ── Quotes section ── */
+  #quotes-section { margin-bottom: 56px; }
+
+  .quotes-list { display: flex; flex-direction: column; gap: 12px; }
+
+  /* ── Save toast ── */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(60px);
+    background: #5a9e6f;
+    color: white;
+    padding: 10px 24px;
+    border-radius: 20px;
+    font-family: 'Cairo', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: transform 0.3s ease;
+    z-index: 999;
+  }
+
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  @media (max-width: 480px) {
+    html { font-size: 16px; }
+    .page { padding: 40px 20px 80px; }
+    .header h1 { font-size: 2.4rem; }
+    .covenant { padding: 28px 16px; }
+    .del-btn { left: -24px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Edit bar -->
+<div class="edit-bar">
+  <span>دستور أحمد</span>
+  <div class="edit-bar-btns">
+    <button class="btn-add-quote" id="btnAddQuote" style="display:none" onclick="addQuote()">+ اضافة اقتباس</button>
+    <button class="btn-add-section" id="btnAddSection" style="display:none" onclick="addSituation()">+ اضافة موقف</button>
+    <button class="btn-edit" id="btnEdit" onclick="toggleEdit()">تعديل</button>
+    <button class="btn-save" id="btnSave" style="display:none" onclick="saveAll()">حفظ</button>
+  </div>
+</div>
+
+<div class="page">
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-label" contenteditable="false" data-key="header-label">وثيقة شخصية</div>
+    <h1 contenteditable="false" data-key="main-title">دستور أحمد</h1>
+    <p class="header-sub" contenteditable="false" data-key="header-sub">اقرأه كل أسبوع · بعد أي مشكلة · وأنت جالس على البحر</p>
+  </header>
+
+  <!-- Section 1 -->
+  <section class="section">
+    <h2 class="section-title" contenteditable="false" data-key="s1-title">أولًا: أنا مين؟</h2>
+
+    <div class="identity-block" style="margin-bottom: 20px;">
+      <p class="negative deletable" data-key="neg1">لست شخصًا كسولًا.<button class="del-btn" onclick="delItem(this)">✕</button></p>
+      <p class="negative deletable" data-key="neg2">لست شخصًا فاشلًا.<button class="del-btn" onclick="delItem(this)">✕</button></p>
+      <p class="negative deletable" data-key="neg3">لست شخصًا عديم المسؤولية.<button class="del-btn" onclick="delItem(this)">✕</button></p>
+    </div>
+    <div class="add-item-row">
+      <input type="text" id="new-neg" placeholder="أضف سطرًا جديدًا هنا…" />
+      <button onclick="addNegative()">إضافة</button>
+    </div>
+
+    <div class="identity-block" style="margin-top: 16px;">
+      <p class="positive deletable" data-key="pos1">أنا شخص يحمل مسؤوليات كثيرة، ويأخذها بجدية شديدة.<button class="del-btn" onclick="delItem(this)">✕</button></p>
+      <p class="positive deletable" data-key="pos2">ضميري المهني مرتفع — وأحيانًا يكون مرتفعًا لدرجة أنه يتعبني.<button class="del-btn" onclick="delItem(this)">✕</button></p>
+      <p class="deletable" style="margin-top: 12px;" data-key="pos3">أنا أحب أن أكون أبًا جيدًا، وزوجًا جيدًا، وابنًا جيدًا، ومهندسًا يعتمد عليه.<button class="del-btn" onclick="delItem(this)">✕</button></p>
+      <p class="deletable" data-key="pos4">ولهذا السبب… أحمل أكثر مما يراني الناس أحمله.<button class="del-btn" onclick="delItem(this)">✕</button></p>
+    </div>
+    <div class="add-item-row">
+      <input type="text" id="new-pos" placeholder="أضف جملة إيجابية…" />
+      <button onclick="addPositive()">إضافة</button>
+    </div>
+  </section>
+
+  <!-- Section 2 -->
+  <section class="section">
+    <h2 class="section-title" contenteditable="false" data-key="s2-title">مشكلتي الحقيقية</h2>
+    <p contenteditable="false" data-key="s2-p1">مشكلتي ليست كثرة المسؤوليات.</p>
+    <p contenteditable="false" data-key="s2-p2">مشكلتي أن عقلي لا يعرف متى يتوقف عن حملها.</p>
+    <div style="margin: 24px 0; padding: 20px 24px; background: var(--pale); border-radius: 2px;">
+      <p style="margin-bottom: 8px; color: var(--muted); font-size: 0.88rem;" contenteditable="false" data-key="s2-label">أنا حوّلت حياتي كلها إلى مشروع هندسي:</p>
+      <p contenteditable="false" data-key="s2-kpi1">كل فكرة = Task. &nbsp; كل نسيان = Failure.</p>
+      <p contenteditable="false" data-key="s2-kpi2">كل مشكلة = Root Cause. &nbsp; كل هدف = KPI.</p>
+      <p contenteditable="false" data-key="s2-kpi3">كل خطأ = دليل أنني أقل من المطلوب.</p>
+    </div>
+    <p style="font-family:'Amiri',serif; font-size:1.15rem; font-weight:700; color:var(--accent);" contenteditable="false" data-key="s2-closing">لكن الحياة ليست مصنعًا.</p>
+  </section>
+
+  <!-- Section 3 -->
+  <section class="section">
+    <h2 class="section-title" contenteditable="false" data-key="s3-title">نقاط قوتي</h2>
+    <ul class="trait-list" id="strengths-list">
+      <li class="deletable" data-key="str1">تحمل المسؤولية<button class="del-btn" onclick="delItem(this)">✕</button></li>
+      <li class="deletable" data-key="str2">تنظيم الفوضى<button class="del-btn" onclick="delItem(this)">✕</button></li>
+      <li class="deletable" data-key="str3">ربط الأقسام ببعض<button class="del-btn" onclick="delItem(this)">✕</button></li>
+      <li class="deletable" data-key="str4">متابعة التفاصيل<button class="del-btn" onclick="delItem(this)">✕</button></li>
+      <li class="deletable" data-key="str5">بناء الأنظمة<button class="del-btn" onclick="delItem(this)">✕</button></li>
+      <li class="deletable" data-key="str6">التعلم المستمر<button class="del-btn" onclick="delItem(this)">✕</button></li>
+      <li class="deletable" data-key="str7">الاعتراف بالخطأ<button class="del-btn" onclick="delItem(this)">✕</button></li>
+    </ul>
+    <div class="add-item-row">
+      <input type="text" id="new-strength" placeholder="أضف نقطة قوة…" />
+      <button onclick="addStrength()">إضافة</button>
+    </div>
+    <p style="margin-top:20px;" class="muted" contenteditable="false" data-key="s3-note">ليس من الضروري أن أكون أفضل مصمم ميكانيكي حتى أكون مهندسًا ناجحًا.</p>
+  </section>
+
+  <!-- Section 4 -->
+  <section class="section">
+    <h2 class="section-title" contenteditable="false" data-key="s4-title">نقاط ضعفي — وأنا أعمل على تغييرها</h2>
+    <ul class="trait-list" id="weaknesses-list">
+      <li class="deletable" data-key="wk1">جلد الذات<button class="del-btn" onclick="delItem(this)">✕</button></li>
+      <li class="deletable" data-key="wk2">تحميل نفسي أكثر من نصيبي<button class="del-btn" onclick="delItem(this)">✕</button></li>
+      <li class="deletable" data-key="wk3">تحويل كل شيء إلى مهمة<button class="del-btn" onclick="delItem(this)">✕</button></li>
+      <li class="deletable" data-key="wk4">عدم الشعور بالإنجاز<button class="del-btn" onclick="delItem(this)">✕</button></li>
+      <li class="deletable" data-key="wk5">نسيان نجاحاتي بسرعة<button class="del-btn" onclick="delItem(this)">✕</button></li>
+      <li class="deletable" data-key="wk6">الاعتقاد أن الراحة نوع من الأنانية<button class="del-btn" onclick="delItem(this)">✕</button></li>
+    </ul>
+    <div class="add-item-row">
+      <input type="text" id="new-weakness" placeholder="أضف نقطة ضعف…" />
+      <button onclick="addWeakness()">إضافة</button>
+    </div>
+  </section>
+
+  <!-- Section 5: Situations -->
+  <section class="section">
+    <h2 class="section-title" contenteditable="false" data-key="s5-title">كيف أتصرف</h2>
+    <div id="situations-list">
+
+      <div class="situation deletable" data-key="sit1">
+        <button class="del-btn" onclick="delItem(this)" style="top:10px;">✕</button>
+        <p class="situation-trigger" contenteditable="false">عندما أخطئ…</p>
+        <p class="situation-response" contenteditable="false">لا أقول: <strong>أنا فاشل.</strong></p>
+        <p class="situation-response strong" contenteditable="false">بل أقول: ارتكبت خطأ.</p>
+        <div class="steps">
+          <div class="step"><span class="step-num">١</span><span contenteditable="false">لماذا حدث؟</span></div>
+          <div class="step"><span class="step-num">٢</span><span contenteditable="false">كيف أمنع تكراره؟</span></div>
+          <div class="step"><span class="step-num">٣</span><span contenteditable="false">أغلق الملف. أصلح النظام — ولا أحاكم نفسي.</span></div>
+        </div>
+      </div>
+
+      <div class="situation deletable" data-key="sit2">
+        <button class="del-btn" onclick="delItem(this)" style="top:10px;">✕</button>
+        <p class="situation-trigger" contenteditable="false">عندما لا يرى الناس مجهودي…</p>
+        <p class="situation-response" contenteditable="false">كثير من عملي هو منع المشاكل قبل حدوثها. هذا النوع لا يلاحظه الناس غالبًا.</p>
+        <p class="situation-response strong" contenteditable="false">قيمتي لا تعتمد على عدد من لاحظني.</p>
+      </div>
+
+      <div class="situation deletable" data-key="sit3">
+        <button class="del-btn" onclick="delItem(this)" style="top:10px;">✕</button>
+        <p class="situation-trigger" contenteditable="false">عندما أتكلم…</p>
+        <p class="situation-response" contenteditable="false">أبدأ بالنتيجة. ثم السبب. ثم التفاصيل إذا طُلبت.</p>
+      </div>
+
+      <div class="situation deletable" data-key="sit4">
+        <button class="del-btn" onclick="delItem(this)" style="top:10px;">✕</button>
+        <p class="situation-trigger" contenteditable="false">عندما أكون مرهقًا…</p>
+        <p class="situation-response strong" contenteditable="false">التعب ليس كسلًا. والراحة ليست فشلًا.</p>
+        <p class="situation-response" contenteditable="false">أنا لا أحتاج إلى جلد نفسي — أنا أحتاج إلى استعادة طاقتي.</p>
+      </div>
+
+      <div class="situation deletable" data-key="sit5">
+        <button class="del-btn" onclick="delItem(this)" style="top:10px;">✕</button>
+        <p class="situation-trigger" contenteditable="false">عندما أجلس على البحر…</p>
+        <p class="situation-response" contenteditable="false">مهمتي ليست أن أكون منتجًا. مهمتي أن أكون حاضرًا.</p>
+        <p class="situation-response strong" contenteditable="false">الفكرة التي تأتي لا تحتاج أن تتحول إلى مهمة.</p>
+        <p class="situation-response" contenteditable="false">أقول فقط: <em>وصلت… وليس وقتها.</em> ثم أعود للحظة.</p>
+      </div>
+
+      <div class="situation deletable" data-key="sit6">
+        <button class="del-btn" onclick="delItem(this)" style="top:10px;">✕</button>
+        <p class="situation-trigger" contenteditable="false">عندما أقارن نفسي بالآخرين…</p>
+        <p class="situation-response strong" contenteditable="false">أنا أقيس نفسي بمن كنت عليه أمس. لا بمن هو أمامي اليوم.</p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- Quotes section -->
+  <section class="section" id="quotes-section">
+    <h2 class="section-title" contenteditable="false" data-key="sq-title">اقتباسات أضفتها</h2>
+    <div class="quotes-list" id="quotes-list">
+      <!-- dynamic quotes go here -->
+    </div>
+    <p id="quotes-empty" style="color:var(--muted); font-size:0.88rem; display:none;">لا توجد اقتباسات بعد. اضغط "+ إضافة اقتباس" لإضافة واحد.</p>
+  </section>
+
+  <!-- Covenant -->
+  <section class="section">
+    <h2 class="section-title" contenteditable="false" data-key="s6-title">العهد</h2>
+    <div class="covenant">
+      <p contenteditable="false" data-key="cov1">لن أجعل هدوئي مؤجلًا إلى أن تنتهي كل المهام.</p>
+      <p contenteditable="false" data-key="cov2">لأن المهام لن تنتهي أبدًا.</p>
+      <br>
+      <p class="accent-line" contenteditable="false" data-key="cov3">وسأتعلم أن أعيش…</p>
+      <p class="accent-line" contenteditable="false" data-key="cov4">وأنا ما زلت في منتصف الطريق.</p>
+    </div>
+  </section>
+
+  <!-- Letter -->
+  <div class="letter">
+    <p class="letter-salutation" contenteditable="false" data-key="let-sal">أحمد،</p>
+    <p contenteditable="false" data-key="let-p1">خلال الشهور اللي فاتت شفت فيك حاجات كتير: مهندس بيسأل عن الإنتاج، وأب بيفكر في ابنه، وزوج بيحاول ينجح، وشخص بيحب السفر والرياضة، وشخص بيتعب جدًا لما يغلط لأنه فعلًا عايز يبقى أحسن.</p>
+    <p contenteditable="false" data-key="let-p2">أهم حاجة تفتكرها مش خطة جيم، ولا نظام مهام، ولا أهداف خمس سنين.</p>
+    <div class="closing" contenteditable="false" data-key="let-closing">
+      أنا لست آلة لإدارة المشكلات…<br>
+      أنا إنسان يحمل مسؤوليات،<br>
+      ويحتاج أحيانًا أن يهدأ،<br>
+      ويستريح، ويُرى، ويُقدَّر.
+    </div>
+  </div>
+
+  <div class="footer">دستور أحمد · ٢٠٢٦</div>
+</div>
+
+<div class="toast" id="toast">تم الحفظ ✓</div>
+
+<script>
+  let editMode = false;
+
+  function toggleEdit() {
+    editMode = !editMode;
+    document.body.classList.toggle('editing', editMode);
+
+    const allEditable = document.querySelectorAll('[contenteditable]');
+    allEditable.forEach(el => el.contentEditable = editMode ? 'true' : 'false');
+
+    document.getElementById('btnEdit').style.display   = editMode ? 'none' : 'inline-block';
+    document.getElementById('btnSave').style.display   = editMode ? 'inline-block' : 'none';
+    document.getElementById('btnAddQuote').style.display   = editMode ? 'inline-block' : 'none';
+    document.getElementById('btnAddSection').style.display = editMode ? 'inline-block' : 'none';
+
+    updateQuotesVisibility();
+  }
+
+  function saveAll() {
+    // persist to localStorage
+    const data = {};
+    document.querySelectorAll('[data-key]').forEach(el => {
+      data[el.dataset.key] = el.innerHTML;
+    });
+
+    // save quotes
+    const quotes = [];
+    document.querySelectorAll('.quote-block').forEach(q => {
+      quotes.push(q.querySelector('.quote-text').innerHTML);
+    });
+    data['__quotes'] = JSON.stringify(quotes);
+    localStorage.setItem('dustoor-ahmed', JSON.stringify(data));
+
+    toggleEdit();
+    showToast();
+  }
+
+  function showToast() {
+    const t = document.getElementById('toast');
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2000);
+  }
+
+  function loadSaved() {
+    const saved = localStorage.getItem('dustoor-ahmed');
+    if (!saved) return;
+    const data = JSON.parse(saved);
+
+    Object.entries(data).forEach(([key, val]) => {
+      if (key === '__quotes') return;
+      const el = document.querySelector(`[data-key="${key}"]`);
+      if (el) el.innerHTML = val;
+    });
+
+    // load quotes
+    if (data['__quotes']) {
+      const quotes = JSON.parse(data['__quotes']);
+      quotes.forEach(q => addQuoteBlock(q));
+    }
+
+    updateQuotesVisibility();
+  }
+
+  // ── Quotes ──
+  let quoteCounter = 0;
+
+  function addQuote() {
+    const text = prompt('أكتب الاقتباس:');
+    if (!text || !text.trim()) return;
+    addQuoteBlock(text.trim());
+    updateQuotesVisibility();
+  }
+
+  function addQuoteBlock(text) {
+    quoteCounter++;
+    const id = 'quote-' + quoteCounter;
+    const div = document.createElement('div');
+    div.className = 'quote-block deletable';
+    div.dataset.key = id;
+    div.innerHTML = `
+      <button class="del-btn" onclick="delItem(this)" style="top:12px;">✕</button>
+      <span class="quote-text" contenteditable="${editMode ? 'true' : 'false'}">${text}</span>
+    `;
+    document.getElementById('quotes-list').appendChild(div);
+    updateQuotesVisibility();
+  }
+
+  function updateQuotesVisibility() {
+    const list = document.getElementById('quotes-list');
+    const empty = document.getElementById('quotes-empty');
+    const section = document.getElementById('quotes-section');
+    const hasQuotes = list.children.length > 0;
+
+    empty.style.display = (!hasQuotes && editMode) ? 'block' : 'none';
+    section.style.display = (hasQuotes || editMode) ? 'block' : 'none';
+  }
+
+  // ── Add situation ──
+  function addSituation() {
+    const trigger = prompt('عنوان الموقف (مثال: عندما أشعر بالإحباط…)');
+    if (!trigger || !trigger.trim()) return;
+    const response = prompt('ردة فعلك:');
+    if (!response || !response.trim()) return;
+
+    const sitId = 'sit-' + Date.now();
+    const div = document.createElement('div');
+    div.className = 'situation deletable';
+    div.dataset.key = sitId;
+    div.innerHTML = `
+      <button class="del-btn" onclick="delItem(this)" style="top:10px;">✕</button>
+      <p class="situation-trigger" contenteditable="${editMode ? 'true' : 'false'}">${trigger.trim()}</p>
+      <p class="situation-response strong" contenteditable="${editMode ? 'true' : 'false'}">${response.trim()}</p>
+    `;
+    document.getElementById('situations-list').appendChild(div);
+  }
+
+  // ── Add list items ──
+  function addToList(inputId, listId, keyPrefix) {
+    const input = document.getElementById(inputId);
+    const val = input.value.trim();
+    if (!val) return;
+
+    const li = document.createElement('li');
+    li.className = 'deletable';
+    li.dataset.key = keyPrefix + Date.now();
+    li.innerHTML = `${val}<button class="del-btn" onclick="delItem(this)">✕</button>`;
+    document.getElementById(listId).appendChild(li);
+    input.value = '';
+  }
+
+  function addStrength() { addToList('new-strength', 'strengths-list', 'str-'); }
+  function addWeakness() { addToList('new-weakness', 'weaknesses-list', 'wk-'); }
+
+  function addNegative() {
+    const input = document.getElementById('new-neg');
+    const val = input.value.trim();
+    if (!val) return;
+    const p = document.createElement('p');
+    p.className = 'negative deletable';
+    p.dataset.key = 'neg-' + Date.now();
+    p.innerHTML = `${val}<button class="del-btn" onclick="delItem(this)">✕</button>`;
+    // insert before the first identity block's last child group
+    const block = document.querySelector('.identity-block');
+    block.appendChild(p);
+    input.value = '';
+  }
+
+  function addPositive() {
+    const input = document.getElementById('new-pos');
+    const val = input.value.trim();
+    if (!val) return;
+    const p = document.createElement('p');
+    p.className = 'positive deletable';
+    p.dataset.key = 'pos-' + Date.now();
+    p.innerHTML = `${val}<button class="del-btn" onclick="delItem(this)">✕</button>`;
+    const blocks = document.querySelectorAll('.identity-block');
+    blocks[1].appendChild(p);
+    input.value = '';
+  }
+
+  // ── Delete ──
+  function delItem(btn) {
+    if (!editMode) return;
+    btn.closest('.deletable').remove();
+    updateQuotesVisibility();
+  }
+
+  // ── Init ──
+  document.addEventListener('DOMContentLoaded', () => {
+    updateQuotesVisibility();
+    loadSaved();
+  });
+</script>
+</body>
+</html>
